@@ -1,0 +1,6 @@
+C:\Users\kirbu\Desktop\dev\outward-exit-randomizer-mod\Release\OutwardExitRandomizerMod.dll.config
+C:\Users\kirbu\Desktop\dev\outward-exit-randomizer-mod\Release\OutwardExitRandomizerMod.dll
+C:\Users\kirbu\Desktop\dev\outward-exit-randomizer-mod\src\obj\Debug\OutwardExitRandomizerMod.csproj.AssemblyReference.cache
+C:\Users\kirbu\Desktop\dev\outward-exit-randomizer-mod\src\obj\Debug\OutwardExitRandomizerMod.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\kirbu\Desktop\dev\outward-exit-randomizer-mod\src\obj\Debug\OutwardExitRandomizerMod.csproj.CoreCompileInputs.cache
+C:\Users\kirbu\Desktop\dev\outward-exit-randomizer-mod\src\obj\Debug\OutwardExitRandomizerMod.dll

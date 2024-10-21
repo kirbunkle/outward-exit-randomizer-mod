@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "r8vPQLiucIo=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\kirbu\\Desktop\\dev\\outward-exit-randomizer-mod\\src\\OutwardExitRandomizerMod.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\kirbu\\.nuget\\packages\\bepinex.baselib\\5.4.16\\bepinex.baselib.5.4.16.nupkg.sha512",
+    "C:\\Users\\kirbu\\.nuget\\packages\\harmonyx\\2.5.7\\harmonyx.2.5.7.nupkg.sha512",
+    "C:\\Users\\kirbu\\.nuget\\packages\\mono.cecil\\0.11.4\\mono.cecil.0.11.4.nupkg.sha512",
+    "C:\\Users\\kirbu\\.nuget\\packages\\monomod.runtimedetour\\21.10.10.1\\monomod.runtimedetour.21.10.10.1.nupkg.sha512",
+    "C:\\Users\\kirbu\\.nuget\\packages\\monomod.utils\\21.10.10.1\\monomod.utils.21.10.10.1.nupkg.sha512",
+    "C:\\Users\\kirbu\\.nuget\\packages\\outward.gamelibs\\2022.5.18-r.0\\outward.gamelibs.2022.5.18-r.0.nupkg.sha512",
+    "C:\\Users\\kirbu\\.nuget\\packages\\unityengine.modules\\2020.3.26\\unityengine.modules.2020.3.26.nupkg.sha512"
+  ],
+  "logs": []
+}
