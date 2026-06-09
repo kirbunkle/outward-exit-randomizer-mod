@@ -9,9 +9,9 @@
         <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
         <DebugType>None</DebugType>
         <OutputPath>..\Release\</OutputPath>
-        <BaseOutputPath>C:\Program Files (x86)\Steam\steamapps\common\Outward\Outward_Defed\BepInEx\plugins</BaseOutputPath>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
         <PackageReference Include="BepInEx.BaseLib" Version="5.4.16" />
         <PackageReference Include="HarmonyX" Version="2.5.7" />
         <PackageReference Include="Outward.GameLibs" Version="2022.5.18-r.0" />

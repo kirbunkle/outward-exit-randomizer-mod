@@ -1,0 +1,6 @@
+/home/adam/dev/outward-exit-randomizer-mod/Release/OutwardExitRandomizerMod.dll.config
+/home/adam/dev/outward-exit-randomizer-mod/Release/OutwardExitRandomizerMod.dll
+/home/adam/dev/outward-exit-randomizer-mod/src/obj/Release/OutwardExitRandomizerMod.csproj.AssemblyReference.cache
+/home/adam/dev/outward-exit-randomizer-mod/src/obj/Release/OutwardExitRandomizerMod.GeneratedMSBuildEditorConfig.editorconfig
+/home/adam/dev/outward-exit-randomizer-mod/src/obj/Release/OutwardExitRandomizerMod.csproj.CoreCompileInputs.cache
+/home/adam/dev/outward-exit-randomizer-mod/src/obj/Release/OutwardExitRandomizerMod.dll

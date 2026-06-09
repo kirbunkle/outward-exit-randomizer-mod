@@ -23,6 +23,7 @@ namespace OutwardExitRandomizerMod
 
         public static ConfigEntry<bool> RemoveTravelRationRestriction;
         public static ConfigEntry<bool> ForceAllExitsToChange;
+        public static ConfigEntry<bool> CombineAllTownLocations;
         public static ConfigEntry<bool> AlwaysStartInCierzo;
         public static ConfigEntry<bool> AlwaysKillOnHardcore;
         public static ConfigEntry<bool> SkipToFactionChoice;
@@ -243,6 +244,12 @@ namespace OutwardExitRandomizerMod
                 }
 
                 AddAreaGroupToCoreExitList(startingAreaGroup);
+
+                if (CombineAllTownLocations.Value)
+                {
+                    ConnectTownCluster(newExits, startingAreaGroupEnum);
+                }
+
                 Exit previousExit = null;
                 AreaGroup nextAreaGroup = null;
                 bool setLevant4 = true;
@@ -517,6 +524,212 @@ namespace OutwardExitRandomizerMod
                 }
             }
 
+            // TownHubs
+            //
+            // Used by the CombineAllTownLocations option. Each hub is the set of area groups physically inside
+            // one town; linking any exit of one hub to any exit of another connects the two towns. The towns'
+            // lockable back-gates and secret entrances are included so the whole cluster seals off from the world.
+            private static readonly AreaGroupEnum[][] TownHubs = new AreaGroupEnum[][] {
+                new AreaGroupEnum[] { AreaGroupEnum.Cierzo },
+                new AreaGroupEnum[] { AreaGroupEnum.Monsoon },
+                new AreaGroupEnum[] { AreaGroupEnum.Levant, AreaGroupEnum.LevantCastleSecretEntrance },
+                new AreaGroupEnum[] { AreaGroupEnum.Harmattan, AreaGroupEnum.HarmattanLockedGate1, AreaGroupEnum.HarmattanLockedGate2 },
+                new AreaGroupEnum[] { AreaGroupEnum.Berg },
+                new AreaGroupEnum[] { AreaGroupEnum.Sirocco },
+            };
+
+            // ConnectTownCluster
+            //
+            // Wires the town hubs together into a single connected cluster, consuming all of their exits except
+            // two, which are left as bridges for the normal passes to connect to the rest of the world. Called
+            // before the connective pass when CombineAllTownLocations is enabled.
+            private void ConnectTownCluster(Dictionary<AreaSpawn, AreaSpawn> newExits, AreaGroupEnum startingAreaGroupEnum)
+            {
+                // Gather each hub's currently-available exits, and record every cluster area group.
+                List<List<Exit>> hubExits = new();
+                HashSet<AreaGroupEnum> clusterGroupEnums = new();
+                foreach (AreaGroupEnum[] hub in TownHubs)
+                {
+                    List<Exit> exits = new();
+                    foreach (AreaGroupEnum groupEnum in hub)
+                    {
+                        if (!AreaGroupEnumToAreaGroupIndex.ContainsKey(groupEnum))
+                        {
+                            continue;
+                        }
+                        clusterGroupEnums.Add(groupEnum);
+                        foreach (Exit exit in AreaGroupEnumToAreaGroupIndex[groupEnum].Exits)
+                        {
+                            if (AreaSpawnIsAvailable(exit.To))
+                            {
+                                exits.Add(exit);
+                            }
+                        }
+                    }
+                    if (exits.Count > 0)
+                    {
+                        hubExits.Add(exits);
+                    }
+                }
+
+                if (hubExits.Count < 2)
+                {
+                    Log.LogWarning($"CombineAllTownLocations: found fewer than two towns, skipping town cluster.");
+                    return;
+                }
+
+                // Interior hubs (more than one exit) can branch; single-exit hubs can only ever be leaves.
+                List<int> interior = new();
+                List<int> leaves = new();
+                for (int i = 0; i < hubExits.Count; i++)
+                {
+                    if (hubExits[i].Count > 1)
+                    {
+                        interior.Add(i);
+                    }
+                    else
+                    {
+                        leaves.Add(i);
+                    }
+                }
+                ShuffleList(interior);
+                ShuffleList(leaves);
+
+                // Build a spanning tree across the interior hubs first (they always keep spare capacity),
+                // then attach each single-exit hub as a leaf.
+                List<int> connected = new();
+                foreach (int hub in interior)
+                {
+                    if (connected.Count > 0 && !TryLinkToHost(connected, hubExits, hub, newExits))
+                    {
+                        return;
+                    }
+                    connected.Add(hub);
+                }
+                foreach (int hub in leaves)
+                {
+                    if (!TryLinkToHost(connected, hubExits, hub, newExits))
+                    {
+                        return;
+                    }
+                    connected.Add(hub);
+                }
+
+                // Add one extra link between two hubs that still have spare exits, so that exactly two exits
+                // remain unused across the whole cluster.
+                List<int> withSpare = new();
+                foreach (int hub in connected)
+                {
+                    if (hubExits[hub].Count > 0)
+                    {
+                        withSpare.Add(hub);
+                    }
+                }
+                if (withSpare.Count >= 2)
+                {
+                    ShuffleList(withSpare);
+                    LinkHubs(hubExits[withSpare[0]], hubExits[withSpare[1]], newExits);
+                }
+
+                // Whatever exits remain unused are the cluster's bridges to the rest of the world.
+                List<Exit> bridges = new();
+                foreach (List<Exit> exits in hubExits)
+                {
+                    bridges.AddRange(exits);
+                }
+                Log.LogDebug($"CombineAllTownLocations: sealed cluster with {bridges.Count} bridge(s) to the world.");
+
+                // The towns are fully wired internally now; keep the normal passes from re-using their exits.
+                foreach (AreaGroupEnum groupEnum in clusterGroupEnums)
+                {
+                    RemoveFromIndexes(groupEnum);
+                }
+
+                if (bridges.Count == 0)
+                {
+                    Log.LogError($"CombineAllTownLocations: cluster has no bridge to the world; it will be unreachable.");
+                    return;
+                }
+
+                if (clusterGroupEnums.Contains(startingAreaGroupEnum))
+                {
+                    // The player starts inside the cluster, so it is the initial reachable area. Seed the core
+                    // with the bridges and let the normal passes connect them outward.
+                    foreach (Exit bridge in bridges)
+                    {
+                        if (!CoreExitList.Contains(bridge))
+                        {
+                            CoreExitList.Add(bridge);
+                        }
+                    }
+                }
+                else
+                {
+                    // Represent the whole cluster as a single multi-exit area group (its bridges) so the normal
+                    // connective pass wires it into the world like any other area.
+                    AreaGroupEnum clusterKeyEnum = clusterGroupEnums.First();
+                    MultipleExitAreaGroupIndex[clusterKeyEnum] = new AreaGroup(clusterKeyEnum, bridges.ToArray());
+                }
+            }
+
+            // TryLinkToHost
+            //
+            // Links the given hub to the connected hub with the most spare exits. Returns false (with an error
+            // logged) if no connected hub has a spare exit.
+            private bool TryLinkToHost(List<int> connected, List<List<Exit>> hubExits, int hub, Dictionary<AreaSpawn, AreaSpawn> newExits)
+            {
+                List<int> best = new();
+                int bestSpare = 0;
+                foreach (int candidate in connected)
+                {
+                    int spare = hubExits[candidate].Count;
+                    if (spare > bestSpare)
+                    {
+                        bestSpare = spare;
+                        best.Clear();
+                        best.Add(candidate);
+                    }
+                    else if (spare == bestSpare && spare > 0)
+                    {
+                        best.Add(candidate);
+                    }
+                }
+                if (best.Count == 0)
+                {
+                    Log.LogError($"CombineAllTownLocations: ran out of host exits while building the town cluster.");
+                    return false;
+                }
+                int host = best[UnityEngine.Random.Range(0, best.Count)];
+                LinkHubs(hubExits[host], hubExits[hub], newExits);
+                return true;
+            }
+
+            // LinkHubs
+            //
+            // Connects a random available exit from each hub, removing them from the hubs' available lists.
+            private void LinkHubs(List<Exit> hubA, List<Exit> hubB, Dictionary<AreaSpawn, AreaSpawn> newExits)
+            {
+                Exit exitA = hubA[UnityEngine.Random.Range(0, hubA.Count)];
+                Exit exitB = hubB[UnityEngine.Random.Range(0, hubB.Count)];
+                hubA.Remove(exitA);
+                hubB.Remove(exitB);
+                ConnectExits(exitA, exitB, newExits);
+            }
+
+            // ShuffleList
+            //
+            // In-place Fisher-Yates shuffle.
+            private void ShuffleList(List<int> list)
+            {
+                for (int i = list.Count - 1; i > 0; i--)
+                {
+                    int j = UnityEngine.Random.Range(0, i + 1);
+                    int temp = list[i];
+                    list[i] = list[j];
+                    list[j] = temp;
+                }
+            }
+
             private bool ResetIndexes(Dictionary<AreaSpawn, AreaSpawn> newExits)
             {
                 if (AreaGroups != null)
@@ -590,6 +803,7 @@ namespace OutwardExitRandomizerMod
             Log.LogMessage($"Begin Initializing {NAME} {VERSION}");
 
             ForceAllExitsToChange = Config.Bind("Map Generation Settings", "ForceAllExitsToChange", true, "If true, (almost) always ensures that no exit that could be randomized goes where it does in the vanilla game.");
+            CombineAllTownLocations = Config.Bind("Map Generation Settings", "CombineAllTownLocations", false, "If true, all six towns (Cierzo, Monsoon, Levant, Harmattan, Berg, and New Sirocco) are wired together into a single sealed cluster, connected to the rest of the randomized world by exactly two exits. Includes the towns' back-gates and secret entrances.");
 
             SkipToFactionChoice = Config.Bind("Randomizer Settings", "SkipToFactionChoice", true, "If true, automatically skips the introduction quest and allows the player to keep the Cierzo house.");
             RandomlyChooseFaction = Config.Bind("Randomizer Settings", "RandomlyChooseFaction", true, "If true, automatically skips the introduction quest, keeps the Cierzo house, and joins a random faction. Supersedes SkipToFactionChoice.");
